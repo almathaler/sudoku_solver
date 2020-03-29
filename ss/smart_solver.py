@@ -131,6 +131,7 @@ def forced(board, possibilities):
                 update_poss(possibilities, index, value)
                 still_forced = True #yea... it'll go thru one more time to see if there are any forced
 
+    #no more forceds... finish
     return board, possibilities
 
 def induced(board, possibilities):
@@ -142,7 +143,33 @@ def induced(board, possibilities):
     #and ofc update all the other possibilities. I'm not sure how many times this should go but we can have a boolean
     #that's again only set to True once len(s1) == 1 for one case. so the loop will run once for no reason to check if it
     #should still go on
-
+    global Cliques
+    print("in induced, possibilities:")
+    print(possibilities)
+    induced = True
+    while (induced):
+        induced = False
+        for clique in Cliques: #boxes, cols, rows
+            for i in clique: #top left, top right etc
+                s1 = set(possibilities[i])
+                print("for position: %d, s1: "%i)
+                print(s1)
+                if len(s1) != 0: #(no danger of it == 1, cuz that was covered by forced)
+                    #cuz if it equals zero, then don't touch it -- it was set by forced
+                    for other in clique:
+                        if other != i:
+                            #cuz we want possibilities of everythng that isn't i
+                            s1 = s1.difference(set(possibilities[other])) #get rid of everything that the other blocks can be
+                print("after modification, s1:")
+                print(s1)
+                if len(s1) == 1:
+                    induced = True #continue, you'll have one round j to check
+                    #that means it is forced induced
+                    value = list(s1) #here value is a list -- be aware of that
+                    possibilities[i] = [] #remember -- index is which clique in Cliques, i is which pos in a clique
+                    print("found induced forced! pos: %d, value: %d"%(i, value[0]))
+                    board[i] = value[0]
+                    update_poss(possibilities, i, value[0])
 
     return board, possibilities
 
