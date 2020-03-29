@@ -67,12 +67,29 @@ def loadBoards(argv = None):
             else:
                 i+=1
 
+#possibilities of each index
 def make_p(index, board):
     global Neighbors, allVals
     possibilities = list(allVals)
     for pos in Neighbors[index]:
         if board[pos] in possibilities:
             possibilities.remove(board[pos])
+    return possibilities
+
+#make the whole possibilities dict
+def make_poss(possibilities, board):
+    for i in range(81):
+        possibilities[i] = make_p(i, board)
+    return possibilities
+
+def update_poss(possibilities, index, value):
+    #print("in update poss, index: %d, value: %d"%(index, value))
+    global Neighbors
+    dummy = 0
+    for neighbor in Neighbors[index]:
+        if value in possibilities[neighbor]:
+            possibilities[neighbor].remove(value)
+            #means that updating that position doesn't affect others' possibilities
     return possibilities
 
 def printBoard(title,b):
@@ -93,11 +110,41 @@ def fill_output(argv, board):
                 arow.append(str(board[9*row+col])) #like, at first row == 0. so first append(b[9*0+0]), then append(b[9*0+1]) etc
             f_out.write(','.join(arow) + '\n') #print row by row
 
-def forced(board):
-    return board
+def forced(board, possibilities):
+    #create possibilities
+    possibilities = make_poss(possibilities, board)
+    print(possibilities)
+    #boolean still_forced = true, false once loop starts, becomes true when len(p) of one of the neighbors is ever 1.
+    #if false at end of loop, stop and you're done w this function
+    #go thru possibilities. If len(p) == 1, modify board and update possibilities of all neighbors (use subtraction)
+    #keep going until still_forced is false. then you're done with this
+    still_forced = True
+    while (still_forced):
+        still_forced = False
+        for index in range(81):
+            if len(possibilities[index])==1:
+                #means that's forced!
+                value = possibilities[index][0]
+                possibilities[index] = []
+                print("found forced! pos: %d, value: %d"%(index, value))
+                board[index] = value
+                update_poss(possibilities, index, value)
+                still_forced = True #yea... it'll go thru one more time to see if there are any forced
 
-def induced(board):
-    return board
+    return board, possibilities
+
+def induced(board, possibilities):
+    #in each clique, go to each position
+    #while the length of that position's possibilities (s1) is > 0:
+    #go through each of the other position's possibilities in that clique and do s1-set(possibilities[position])
+    #you might end up with len(s1) == 0 or == 1 (if it's > 1, that's an error)
+    #if len(s1) == 1, that means that's an 'induced' position and you should put that down on the board
+    #and ofc update all the other possibilities. I'm not sure how many times this should go but we can have a boolean
+    #that's again only set to True once len(s1) == 1 for one case. so the loop will run once for no reason to check if it
+    #should still go on
+
+
+    return board, possibilities
 
 def naive(board):
     myStack = [] #we'll just use append and pop to treat this like a stack
@@ -160,8 +207,12 @@ def main(argv = None):
     makeNeighbors()
     board = Boards[argv[3]]
     #print(Boards[toSolve])
-    board = forced(board)
-    board = induced(board)
+
+    #possibilities is a mini-global; just need it for forced and induced to share. It's set up in forced
+    #possibilities is a dictionary of each index and its possibilities, created before modification
+    possibilities = {}
+    board, possibilities = forced(board, possibilities)
+    board, possibilities = induced(board, possibilities)
     #Now SOLVE
     board = naive(board)
     printBoard("from naive", board)
