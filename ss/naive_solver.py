@@ -154,6 +154,6 @@ def main(argv = None):
         print("board is correct!")
     ttime = time.time() - start_time
     fill_output(argv, board)
-    print("numtrials: %d, numbacktracks: %d, time elapsed: %f"%(numtrials, numbacks, ttim))
+    print("numtrials: %d, numbacktracks: %d, time elapsed: %f"%(numtrials, numbacks, ttime))
     return 0
 main()
