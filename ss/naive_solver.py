@@ -96,7 +96,7 @@ def fill_output(argv, board):
 
 def main(argv = None):
     #note args like this: arg[0]:program arg[1]:input arg[2]:output arg[3]:name of board to solve
-
+    start_time = time.time()
     #SETTING UP BOARD WE'RE GONNA SOLVE
     global Boards, Neighbors
     if not argv:
@@ -152,8 +152,8 @@ def main(argv = None):
         print("did not pass check")
     else:
         print("board is correct!")
-
+    ttime = time.time() - start_time
     fill_output(argv, board)
-    print("numtrials: %d, numbacktracks: %d"%(numtrials, numbacks))
+    print("numtrials: %d, numbacktracks: %d, time elapsed: %f"%(numtrials, numbacks, ttim))
     return 0
 main()

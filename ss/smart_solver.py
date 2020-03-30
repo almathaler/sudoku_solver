@@ -79,7 +79,10 @@ def make_p(index, board):
 #make the whole possibilities dict
 def make_poss(possibilities, board):
     for i in range(81):
-        possibilities[i] = make_p(i, board)
+        if board[i] == 0:
+            possibilities[i] = make_p(i, board)
+        else:
+            possibilities[i] = []
     return possibilities
 
 def update_poss(possibilities, index, value):
@@ -91,6 +94,23 @@ def update_poss(possibilities, index, value):
             possibilities[neighbor].remove(value)
             #means that updating that position doesn't affect others' possibilities
     return possibilities
+
+#returns a list of 0-80, sorted by lowest possibilities first
+#you should re-make the list like every 10 additions or so and also save this in savestate
+
+#yea.. feeling lazy. don't want to write a compare_to
+def order_poss(possibilities):
+    ordered = []
+    for i in range(81):
+        if len(possibilities[i]) != 0:
+            to_add = []
+            to_add.append(i)
+            to_add.extend(possibilities[i])
+            ordered.append(to_add)
+    ordered = sorted(ordered, key=len)
+    for k in range(len(ordered)):
+        ordered[k] = ordered[k][0]
+    return ordered
 
 def printBoard(title,b):
     print(title)
@@ -112,7 +132,6 @@ def fill_output(argv, board):
 
 def forced(board, possibilities):
     #create possibilities
-    possibilities = make_poss(possibilities, board)
     print(possibilities)
     #boolean still_forced = true, false once loop starts, becomes true when len(p) of one of the neighbors is ever 1.
     #if false at end of loop, stop and you're done w this function
@@ -152,7 +171,7 @@ def induced(board, possibilities):
         for clique in Cliques: #boxes, cols, rows
             for i in clique: #top left, top right etc
                 s1 = set(possibilities[i])
-                print("for position: %d, s1: "%i)
+                #print("for position: %d, s1: "%i)
                 print(s1)
                 if len(s1) != 0: #(no danger of it == 1, cuz that was covered by forced)
                     #cuz if it equals zero, then don't touch it -- it was set by forced
@@ -167,65 +186,26 @@ def induced(board, possibilities):
                     #that means it is forced induced
                     value = list(s1) #here value is a list -- be aware of that
                     possibilities[i] = [] #remember -- index is which clique in Cliques, i is which pos in a clique
-                    print("found induced forced! pos: %d, value: %d"%(i, value[0]))
+                    #print("found induced forced! pos: %d, value: %d"%(i, value[0]))
                     board[i] = value[0]
                     update_poss(possibilities, i, value[0])
 
     return board, possibilities
 
-def naive(board):
-    myStack = [] #we'll just use append and pop to treat this like a stack
-    i = 0
-    backtrack = False
-    numtrials = 0
-    numbacks = 0
-    possibilities = []
-    while i < len(board):
-        #first check if it needs to be switched -- remember if you're gonna backtrack, set the value of board[prev_index] to 0!
-        if board[i] == 0:
-            #print("board[%d] == 0"%i)
-            #make possibilities, only if you're not backtracking otherwise you already have possibilities
-            if not backtrack:
-                possibilities = make_p(i, board)
-                #print("for index %d, possibilities:"%i)
-                #print(possibilities)
-            if len(possibilities) > 1:
-                #add to stack BEFORE YOU MAKE ANY ADJUSTMENTS (so that when you backtrack, you don't have to overwrite)
-                save = SaveState(i, possibilities[:-1], board[:])
-                myStack.append(save)
-                #add first possibility
-                board[i] = possibilities.pop() #this way the list shortens on its own
-                backtrack = False
-                i+=1
-            elif len(possibilities) == 1: #aka forced
-                board[i] = possibilities.pop() #no reason to save, bc can't change this decision
-                backtrack = False
-                i+=1
-            else: #you have nothing to do, back track
-                saved = myStack.pop()
-                i = saved.index
-                possibilities = saved.possibilities
-                board = saved.board
-                backtrack = True
-                numbacks+=1
-        else:
-            i+=1
-
-        numtrials+=1
-    #hey! finished the board
-    #checking...
-    numwrong = getIncorrect(board)
-    if len(numwrong)>0:
-        print("did not pass check")
-    else:
-        print("board is correct!")
-    print("numtrials: %d, numbacktracks: %d"%(numtrials, numbacks))
+def naive(board, possibilities):
+    myStack = []
+    print("in naive")
+    print(possibilities)
+    print("least to highest:")
+    ordered = order_poss(possibilities)
+    print(ordered)
 
     return board
 
+
 def main(argv = None):
     #note args like this: arg[0]:program arg[1]:input arg[2]:output arg[3]:name of board to solve
-
+    start_time = time.time()
     #SETTING UP BOARD WE'RE GONNA SOLVE
     global Boards, Neighbors
     if not argv:
@@ -238,12 +218,19 @@ def main(argv = None):
     #possibilities is a mini-global; just need it for forced and induced to share. It's set up in forced
     #possibilities is a dictionary of each index and its possibilities, created before modification
     possibilities = {}
+    possibilities = make_poss(possibilities, board)
+    '''
+    #sad these procedures ADD TIME TO MY THING!!!!
     board, possibilities = forced(board, possibilities)
+    printBoard("after forced:", board)
     board, possibilities = induced(board, possibilities)
+    printBoard("after induced:", board)
+    '''
     #Now SOLVE
-    board = naive(board)
+    board = naive(board, possibilities)
     printBoard("from naive", board)
-
+    ttime = time.time() - start_time
+    print("time elapsed: %f"%ttime)
     fill_output(argv, board)
     return 0
 
