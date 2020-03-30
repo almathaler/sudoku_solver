@@ -103,6 +103,7 @@ def update_poss(possibilities, index, value, board):
                 must_backtrack = True
                 #print("this causes neighbor %d to have no possibilities"%neighbor)
             #means that updating that position doesn't affect others' possibilities
+    possibilities[index] = [] #b/c it's full so it shouldn't register as having anymore possibilities
     return possibilities, must_backtrack
 
 
@@ -201,7 +202,30 @@ def induced(board, possibilities):
                     possibilities, dummy = update_poss(possibilities, i, value[0], board)
 
     return board, possibilities
-
+#returns true if this spot is coerced by neighbors
+def induced_2(index, possibilities):
+    s1 = set(possibilities[index])
+    global Cliques
+    our_cliques = []
+    for clique in Cliques:
+        if index in clique:
+            our_cliques.append(clique)
+    #the above got all the cliques we can work with
+    if len(s1) != 0:
+        for clique in our_cliques:
+                for other in clique:
+                    if other != index:
+                        #cuz we want possibilities of everythng that isn't i
+                        s1 = s1.difference(set(possibilities[other])) #get rid of everything that the other blocks can be
+    #                print("after modification, s1:")
+    #                print(s1)
+                if len(s1) == 1:
+                    induced = True #continue, you'll have one round j to check
+                    value = list(s1)[0]
+                    return True, value
+                #reset for the next round
+                s1 = set(possibilities[index])
+        return False, -1
 def naive(board, possibilities):
     #set up
     #print("in naive")
@@ -222,45 +246,53 @@ def naive(board, possibilities):
 #        print("looking at position %d"%i)
 #        print("possibilites:")
 #        print(possibilities[i])
-
-        if len(possibilities[i]) > 1:
-            #add to stack BEFORE YOU MAKE ANY ADJUSTMENTS (so that when you backtrack, you don't have to overwrite)
-            #to stack you add ordered (with the current index appended, so you can pick up where you left off), possibilities (minus what you just chose) and board
-
-            #make the ordered_save
-            ordered_save = ordered[:]
-            ordered_save.append(i)
-            #set value = possibilites[i].pop() so you're not saving an exact copy of possibiltiies
-
+        #check for forced first
+        if len(possibilities[i]) == 1: #aka forced
             value = possibilities[i].pop()
-            save = SaveState(ordered_save, copy.deepcopy(possibilities), board[:])
-            #save.print_state()
-            myStack.append(save)
-
-#            print("trying out this value: %d"%value)
-
-            #add first possibility
-            board[i] = value #this way the list shortens on its own
-            #b/c this spot is taken, now this shld have 0 possibilities
-            possibilities[i] = []
-#            printBoard("board now: ", board)
-            #update possibilities
-            possibilites, must_backtrack = update_poss(possibilities, i, value, board)
-#            if (must_backtrack):
-#                print("uh oh! this caused a neighbor to have no potential moves. need to undo")
-            num_iters+=1
-        elif len(possibilities[i]) == 1: #aka forced
-            value = possibilities[i].pop()
-#            print("forced, doing %d"%value)
+        #            print("forced, doing %d"%value)
             board[i] = value #no reason to save, bc can't change this decision
             possibilities, must_backtrack = update_poss(possibilities, i, value, board)
-#            if (must_backtrack):
-#                print("uh oh! this caused a neighbor to have no potential moves. need to undo")
+        #            if (must_backtrack):
+        #                print("uh oh! this caused a neighbor to have no potential moves. need to undo")
             num_iters += 1
 
+        elif len(possibilities[i]) > 1:
+            #add to stack BEFORE YOU MAKE ANY ADJUSTMENTS (so that when you backtrack, you don't have to overwrite)
+            #to stack you add ordered (with the current index appended, so you can pick up where you left off), possibilities (minus what you just chose) and board
+            induced, value = induced_2(i, possibilities)
+            if induced:
+                #print("induced, doing %d for position %d"%(value, i))
+                board[i] = value #no reason to save, bc can't change this decision
+                possibilities, must_backtrack = update_poss(possibilities, i, value, board)
+            #            if (must_backtrack):
+            #                print("uh oh! this caused a neighbor to have no potential moves. need to undo")
+
+            else:
+                #make the ordered_save
+                ordered_save = ordered[:]
+                ordered_save.append(i)
+                #set value = possibilites[i].pop() so you're not saving an exact copy of possibiltiies
+
+                value = possibilities[i].pop()
+                save = SaveState(ordered_save, copy.deepcopy(possibilities), board[:])
+                #save.print_state()
+                myStack.append(save)
+
+    #            print("trying out this value: %d"%value)
+
+                #add first possibility
+                board[i] = value #this way the list shortens on its own
+                #b/c this spot is taken, now this shld have 0 possibilities
+                possibilities[i] = []
+    #            printBoard("board now: ", board)
+                #update possibilities
+                possibilites, must_backtrack = update_poss(possibilities, i, value, board)
+    #            if (must_backtrack):
+    #                print("uh oh! this caused a neighbor to have no potential moves. need to undo")
+            num_iters += 1
         #backtrackings
         elif len(possibilities[i]) == 0: #you have nothing to do, back track
-#            print("backtracking...")
+            #print("backtracking...")
             saved = myStack.pop()
             possibilities = copy.deepcopy(saved.possibilities)
             ordered = saved.ordered[:] #so you can go back to the position you were at
@@ -268,14 +300,14 @@ def naive(board, possibilities):
             numbacks+=1
 
         if must_backtrack:
-#            print("backtracking...")
+            #print("backtracking...")
             saved = myStack.pop()
             possibilities = copy.deepcopy(saved.possibilities)
             ordered = saved.ordered[:] #so you can go back to the position you were at
             board = saved.board
             numbacks+=1
 
-        if num_iters%5 == 0:
+        if num_iters%2 == 0:
             ordered = order_poss(possibilities)
         '''
         if must_backtrack:
@@ -309,13 +341,13 @@ def main(argv = None):
 
     #sad these procedures ADD TIME TO MY THING!!!!
     board, possibilities = forced(board, possibilities)
-#    printBoard("after forced:", board)
+    #printBoard("after forced:", board)
     board, possibilities = induced(board, possibilities)
-#    printBoard("after induced:", board)
+    #printBoard("after induced:", board)
 
     #Now SOLVE
     board = naive(board, possibilities)
-    printBoard("from naive", board)
+    printBoard("final", board)
     ttime = time.time() - start_time
     print("time elapsed: %f"%ttime)
     fill_output(argv, board)
